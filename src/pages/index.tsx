@@ -9,20 +9,32 @@ import EmbedSignIn from "~/components/EmbedSignIn";
 import { api, type RouterOutputs } from "~/utils/api";
 import Image from "next/image";
 import dayjs from "dayjs";
+import { useState } from "react";
 import relativeTime from "dayjs/plugin/relativeTime";
-import { LoadingPage, LoadingSpinner } from "~/components/LoadingSpinner";
+import { LoadingPage } from "~/components/LoadingSpinner";
 
 dayjs.extend(relativeTime);
 
 const CreatePostWizard = () => {
+  const [inputText, setInputText] = useState<string>("");
+
   const { user } = useUser();
+
+  const ctx = api.useContext();
+
+  const { mutate, isLoading: isPosting } = api.posts.create.useMutation({
+    onSuccess: () => {
+      setInputText("");
+      void ctx.posts.getAll.invalidate();
+    },
+  });
 
   if (!user) return null;
 
   return (
     <div className="flex w-full gap-3">
       <Image
-        className="h-14 w-14 rounded-full"
+        className="h-12 w-12 rounded-full"
         src={user.profileImageUrl}
         alt="Profile img"
         width={56}
@@ -32,7 +44,11 @@ const CreatePostWizard = () => {
         type="text"
         placeholder="share your ideas 💭"
         className="grow bg-transparent outline-none"
+        value={inputText}
+        onChange={(e) => setInputText(e.target.value)}
+        disabled={isPosting}
       />
+      <button onClick={() => mutate({ content: inputText })}>Post</button>
     </div>
   );
 };
@@ -43,20 +59,20 @@ const PostView = (props: { post: { post: PostWithUser } }) => {
   const { post, author } = props;
 
   return (
-    <div className="flex gap-3 border-b border-slate-400" key={post.id}>
+    <div className="flex gap-3 border-b border-slate-400 p-2" key={post.id}>
       <Image
-        className="h-14 w-14 rounded-full"
+        className="h-12 w-12 rounded-full"
         src={author.profileImageUrl}
         alt="Profile Img"
         width={56}
         height={56}
       />
-      <div className="flex flex-col">
+      <div className="flex flex-col ">
         <div className="flex text-slate-300">
           <span className="gap-4">@{`${author.username}`}</span>&nbsp;·&nbsp;
           <span>{dayjs(post.createdAt).fromNow()}</span>
         </div>
-        <span>{post.content}</span>
+        <span className="text-md pt-1 text-slate-300">{post.content}</span>
       </div>
     </div>
   );
@@ -71,8 +87,8 @@ const Feed = () => {
 
   return (
     <div className="flex flex-col">
-      {[...data, ...data]?.map((fullPost) => (
-        <PostView {...fullPost} key={fullPost.post.id} />
+      {data.map((fullPost, index) => (
+        <PostView {...fullPost} key={`${fullPost.post.id}-${index}`} />
       ))}
     </div>
   );
@@ -98,7 +114,7 @@ const Home: NextPage = () => {
             <div className="flex justify-center">
               <EmbedSignIn />
             </div>
-            <div>{!!user && <CreatePostWizard />}</div>
+            <div className="w-full">{!!user && <CreatePostWizard />}</div>
           </div>
           <Feed />
         </div>
