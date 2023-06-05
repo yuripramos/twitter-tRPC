@@ -10,6 +10,7 @@ import { api, type RouterOutputs } from "~/utils/api";
 import Image from "next/image";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
+import { LoadingPage, LoadingSpinner } from "~/components/LoadingSpinner";
 
 dayjs.extend(relativeTime);
 
@@ -17,8 +18,6 @@ const CreatePostWizard = () => {
   const { user } = useUser();
 
   if (!user) return null;
-
-  console.log(user);
 
   return (
     <div className="flex w-full gap-3">
@@ -42,6 +41,7 @@ type PostWithUser = RouterOutputs["posts"]["getAll"][number];
 
 const PostView = (props: { post: { post: PostWithUser } }) => {
   const { post, author } = props;
+
   return (
     <div className="flex gap-3 border-b border-slate-400" key={post.id}>
       <Image
@@ -62,14 +62,28 @@ const PostView = (props: { post: { post: PostWithUser } }) => {
   );
 };
 
-const Home: NextPage = () => {
-  const { data, isLoading } = api.posts.getAll.useQuery();
+const Feed = () => {
+  const { data, isLoading: postsLoading } = api.posts.getAll.useQuery();
 
-  const user = useUser();
-
-  if (isLoading) return <div>Loading ...</div>;
+  if (postsLoading) return <LoadingPage />;
 
   if (!data) return <div>Something went wrong</div>;
+
+  return (
+    <div className="flex flex-col">
+      {[...data, ...data]?.map((fullPost) => (
+        <PostView {...fullPost} key={fullPost.post.id} />
+      ))}
+    </div>
+  );
+};
+
+const Home: NextPage = () => {
+  const { user, isLoaded: userLoaded } = useUser();
+
+  api.posts.getAll.useQuery();
+
+  if (!userLoaded) return <div />;
 
   return (
     <>
@@ -86,11 +100,7 @@ const Home: NextPage = () => {
             </div>
             <div>{!!user && <CreatePostWizard />}</div>
           </div>
-          <div className="flex flex-col">
-            {[...data, ...data]?.map((fullPost) => (
-              <PostView {...fullPost} key={fullPost.post.id} />
-            ))}
-          </div>
+          <Feed />
         </div>
       </main>
     </>
